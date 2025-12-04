@@ -1,9 +1,10 @@
-import Map from "../components/Map";
+import Map from "@/components/Map";
 
 export default async function Home() {
   const res = await fetch("http://localhost:3000/api/cafes", {
-    cache: "no-cache",
+    cache: "no-store", 
   });
+
   const cafes = await res.json();
 
   return (
