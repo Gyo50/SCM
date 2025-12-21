@@ -1,26 +1,40 @@
-// app/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import Map from "@/components/Map";
 import Header from "@/components/Header";
 
-type Cafe = {
+export type Cafe = {
   id: number;
   name: string;
   roadAddress: string;
-  lat?: number;
-  lng?: number;
+  brand: "STARBUCKS" | "HOLLYS" | "TWOSOME" | "TOMNTOMS" | "COMPOSE" | "ETC";
+  kakaoPlaceUrl: string;
+  kakaoDirectUrl: string;
+  open24h: boolean;
+  todayHoursText: string;
+  isOpenNow: boolean;
+  statusText: string;
 };
 
-export default async function Home() {
-  const res = await fetch("http://localhost:3000/api/cafes", {
-    cache: "no-store",
-  });
+export default function Page() {
+  const [cafes, setCafes] = useState<Cafe[]>([]);
 
-  const cafes: Cafe[] = await res.json();
+  useEffect(() => {
+    fetch("/api/cafes", { cache: "no-store" })
+      .then((res) => res.json())
+      .then(setCafes);
+  }, []);
 
   return (
-    <main>
+    <div className="flex flex-col h-dvh w-full">
+      {/* ✅ 헤더 */}
       <Header />
-      <Map cafes={cafes} />
-    </main>
+
+      {/* ✅ 헤더 제외한 나머지 영역 */}
+      <div className="flex-1 relative">
+        <Map cafes={cafes} />
+      </div>
+    </div>
   );
 }

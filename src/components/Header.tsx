@@ -1,32 +1,54 @@
-// src/components/Header.tsx
+// src/app/page.tsx
 "use client";
 
-import Image from "next/image";
+import { useEffect, useState } from "react";
+import Map from "@/components/Map";
+import Header from "@/components/Header"; // ✅ 기존 헤더 그대로 사용
 
-export default function Header() {
+export type OpenHours = { open: string; close: string };
+export type OpenHoursByDay = Record<number, OpenHours | null>;
+
+export type Cafe = {
+  id: number;
+  name: string;
+  roadAddress: string;
+
+  brand: "STARBUCKS" | "HOLLYS" | "TWOSOME" | "TOMNTOMS" | "COMPOSE" | "ETC";
+
+  kakaoPlaceUrl: string;
+  kakaoDirectUrl: string;
+
+  open24h: boolean;
+  openHours?: OpenHours | null;
+  openHoursByDay?: OpenHoursByDay;
+
+  todayHoursText: string;
+  isOpenNow: boolean;
+  statusText: string;
+};
+
+export default function Page() {
+  const [cafes, setCafes] = useState<Cafe[]>([]);
+
+  useEffect(() => {
+    const run = async () => {
+      const res = await fetch("/api/cafes", { cache: "no-store" });
+      const data = (await res.json()) as Cafe[];
+      setCafes(data);
+    };
+    run();
+  }, []);
+
   return (
-    <header className="flex items-center justify-between gap-4 p-4 max-w-[1024px] mx-auto">
-      
-      {/* 왼쪽: 로고 + 제목 */}
-      <div className="flex items-center gap-3">
-        <Image
-          src="/logo.svg"
-          alt="SCM 로고"
-          width={40}
-          height={40}
-        />
-        <span className="text-lg font-semibold">SCM Study Cafe Map</span>
-      </div>
+    // ✅ 핵심: 화면을 "헤더 + 나머지"로 나눔
+    <div className="flex h-dvh w-full flex-col">
+      {/* ✅ 기존 헤더 */}
+      <Header />
 
-      {/* 오른쪽: 검색창 */}
-      <div className="flex items-center">
-        <input
-          type="text"
-          placeholder="지역 / 카페 이름 검색"
-          className="border border-gray-300 placeholder-gray-300 rounded-md px-3 py-2 w-56 
-                     focus:outline-none focus:ring-2 focus:ring-blue-400 focus:text-black"
-        />
+      {/* ✅ 헤더 아래 나머지 영역이 맵 */}
+      <div className="flex-1">
+        <Map cafes={cafes} />
       </div>
-    </header>
+    </div>
   );
 }
