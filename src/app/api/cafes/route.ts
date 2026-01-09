@@ -1,88 +1,32 @@
-// src/app/api/cafes/route.ts
 import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-type CafeBrand =
-  | "STARBUCKS"
-  | "HOLLYS"
-  | "TWOSOME"
-  | "TOMNTOMS"
-  | "COMPOSE"
-  | "ETC";
-
-type OpenHours = { open: string; close: string };
-type OpenHoursByDay = Record<number, OpenHours | null>;
+// 1. 필요한 타입 정의 (기존에 쓰던 타입 그대로 유지)
+export type CafeBrand = "STARBUCKS" | "HOLLYS" | "TWOSOME" | "TOMNTOMS" | "COMPOSE" | "ETC";
+export type OpenHours = { open: string; close: string };
+export type OpenHoursByDay = Record<number, OpenHours | null>;
 
 export type Cafe = {
   id: number;
   name: string;
   roadAddress: string;
-
   brand: CafeBrand;
-
   kakaoPlaceUrl: string;
   kakaoDirectUrl: string;
-
   open24h: boolean;
   openHours?: OpenHours | null;
-  openHoursByDay?: OpenHoursByDay;
-
+  openHoursByDay?: OpenHoursByDay | null;
   hasOutlet?: boolean;
   singleSeat?: boolean;
 };
 
 export type CafeWithOpen = Cafe & {
-  todayHoursText: string; // "07:00 ~ 22:00" / "24시간" / "영업시간 정보 없음"
+  todayHoursText: string;
   isOpenNow: boolean;
-  statusText: string; // "영업중 · 22:00까지" / "영업종료 · 내일 07:00 오픈" ...
+  statusText: string;
 };
 
-// ✅ 샘플 데이터 (네 구조대로: brand만 추가)
-const DATA: Cafe[] = [
-  {
-    id: 1,
-    name: "컴포즈커피",
-    roadAddress: "서울특별시 강서구 양천로 431 (가양동)",
-    brand: "COMPOSE",
-    kakaoPlaceUrl: "https://place.map.kakao.com/1987953441",
-    kakaoDirectUrl: "https://kko.to/OUTKLbanpr",
-
-    open24h: false,
-    openHoursByDay: {
-      0: { open: "09:00", close: "21:00" },
-      1: { open: "07:00", close: "22:00" },
-      2: { open: "07:00", close: "22:00" },
-      3: { open: "07:00", close: "22:00" },
-      4: { open: "07:00", close: "22:00" },
-      5: { open: "07:00", close: "22:00" },
-      6: { open: "08:00", close: "22:00" },
-    },
-  },
-  {
-    id: 2,
-    name: "그라나다카페",
-    roadAddress:
-      "서울특별시 강서구 허준로5길 37, A동 (가양동,(지상 1층))",
-    brand: "ETC",
-    kakaoPlaceUrl: "https://place.map.kakao.com/12578863",
-    kakaoDirectUrl: "https://kko.to/RlMeUdroBE",
-
-    open24h: true,
-    openHours: null,
-  },
-  {
-    id: 3,
-    name: "역삼아레나빌딩",
-    roadAddress: "서울특별시 강남구 언주로 425 (역삼동)",
-    brand: "HOLLYS",
-    kakaoPlaceUrl: "https://kko.to/BwEgF9l_z3",
-    kakaoDirectUrl: "https://kko.to/uK5EcxBt1g",
-
-    open24h: false,
-    openHours: { open: "07:00", close: "22:00" },
-  },
-];
-
-// "HH:MM" -> minutes
+// 2. 헬퍼 함수들 (기존 로직 복사)
 function toMinutes(hhmm: string): number {
   const [hh, mm] = hhmm.split(":").map((v) => parseInt(v, 10));
   return hh * 60 + mm;
@@ -90,98 +34,63 @@ function toMinutes(hhmm: string): number {
 
 function getTodayHours(cafe: Cafe, day: number): OpenHours | null {
   if (cafe.open24h) return null;
-
-  if (cafe.openHoursByDay && cafe.openHoursByDay[day] !== undefined) {
-    return cafe.openHoursByDay[day];
-  }
-  if (cafe.openHours) return cafe.openHours;
-
+  // Supabase에서 올 때 타입 처리를 위해 캐스팅
+  const byDay = cafe.openHoursByDay as OpenHoursByDay | undefined;
+  if (byDay && byDay[day] !== undefined) return byDay[day];
+  if (cafe.openHours) return cafe.openHours as OpenHours;
   return null;
 }
 
-function computeOpenStatus(
-  cafe: Cafe,
-  now: Date
-): Pick<CafeWithOpen, "todayHoursText" | "isOpenNow" | "statusText"> {
+function computeOpenStatus(cafe: Cafe, now: Date) {
   if (cafe.open24h) {
-    return {
-      todayHoursText: "24시간",
-      isOpenNow: true,
-      statusText: "24시간 영업",
-    };
+    return { todayHoursText: "24시간", isOpenNow: true, statusText: "24시간 영업" };
   }
-
-  const day = now.getDay(); // 0(일)~6(토)
+  const day = now.getDay();
   const todayHours = getTodayHours(cafe, day);
 
   if (!todayHours) {
-    return {
-      todayHoursText: "영업시간 정보 없음",
-      isOpenNow: false,
-      statusText: "영업시간 정보 없음",
-    };
+    return { todayHoursText: "정보 없음", isOpenNow: false, statusText: "영업시간 정보 없음" };
   }
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const openMin = toMinutes(todayHours.open);
   const closeMin = toMinutes(todayHours.close);
-
-  // MVP: 자정 넘김 영업은 아직 미지원
   const isOpenNow = nowMin >= openMin && nowMin < closeMin;
 
   if (isOpenNow) {
-    return {
-      todayHoursText: `${todayHours.open} ~ ${todayHours.close}`,
-      isOpenNow: true,
-      statusText: `영업중 · ${todayHours.close}까지`,
-    };
+    return { todayHoursText: `${todayHours.open} ~ ${todayHours.close}`, isOpenNow: true, statusText: `영업중 · ${todayHours.close}까지` };
   }
-
-  // 오픈 전
   if (nowMin < openMin) {
-    return {
-      todayHoursText: `${todayHours.open} ~ ${todayHours.close}`,
-      isOpenNow: false,
-      statusText: `영업종료 · ${todayHours.open} 오픈`,
-    };
+    return { todayHoursText: `${todayHours.open} ~ ${todayHours.close}`, isOpenNow: false, statusText: `영업종료 · ${todayHours.open} 오픈` };
   }
-
-  // 마감 후 → 내일 오픈
-  const tomorrow = (day + 1) % 7;
-  const tomorrowHours = getTodayHours(cafe, tomorrow);
-
-  if (tomorrowHours) {
-    return {
-      todayHoursText: `${todayHours.open} ~ ${todayHours.close}`,
-      isOpenNow: false,
-      statusText: `영업종료 · 내일 ${tomorrowHours.open} 오픈`,
-    };
-  }
-
-  return {
-    todayHoursText: `${todayHours.open} ~ ${todayHours.close}`,
-    isOpenNow: false,
-    statusText: `영업종료`,
-  };
+  return { todayHoursText: `${todayHours.open} ~ ${todayHours.close}`, isOpenNow: false, statusText: `영업종료` };
 }
 
+// 3. 메인 GET 함수
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const q = (searchParams.get("q") || "").trim().toLowerCase();
+  const swLat = searchParams.get("swLat");
+  const swLng = searchParams.get("swLng");
+  const neLat = searchParams.get("neLat");
+  const neLng = searchParams.get("neLng");
 
-  let result = [...DATA];
+  // 1. 기본 쿼리 시작
+  let query = supabase.from("cafes").select("*");
 
-  if (q) {
-    result = result.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.roadAddress.toLowerCase().includes(q)
-    );
+  // 2. 좌표 범위 필터링 (중요!)
+  if (swLat && swLng && neLat && neLng) {
+    query = query
+      .gte("latitude", parseFloat(swLat))
+      .lte("latitude", parseFloat(neLat))
+      .gte("longitude", parseFloat(swLng))
+      .lte("longitude", parseFloat(neLng));
   }
 
-  const now = new Date();
+  const { data: result, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const withOpen: CafeWithOpen[] = result.map((cafe) => ({
+  const now = new Date();
+  const withOpen = (result || []).map((cafe) => ({
     ...cafe,
     ...computeOpenStatus(cafe, now),
   }));

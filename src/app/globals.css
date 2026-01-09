@@ -1,4 +1,12 @@
-@import "tailwindcss";
+@import "tailwindcss";  
+
+@utility scroll-hide {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 
 :root {
   --background: #ffffff;

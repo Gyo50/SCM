@@ -1,39 +1,78 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Header, { FilterKey } from "@/components/Header";
 import Map from "@/components/Map";
-import Header from "@/components/Header";
-
-export type Cafe = {
-  id: number;
-  name: string;
-  roadAddress: string;
-  brand: "STARBUCKS" | "HOLLYS" | "TWOSOME" | "TOMNTOMS" | "COMPOSE" | "ETC";
-  kakaoPlaceUrl: string;
-  kakaoDirectUrl: string;
-  open24h: boolean;
-  todayHoursText: string;
-  isOpenNow: boolean;
-  statusText: string;
-};
+import { supabase } from "@/lib/supabase";
 
 export default function Page() {
-  const [cafes, setCafes] = useState<Cafe[]>([]);
+  const [cafes, setCafes] = useState([]);
+  const [q, setQ] = useState("");
+  const [selectedFilters, setSelectedFilters] = useState<FilterKey[]>([]);
 
-  useEffect(() => {
-    fetch("/api/cafes", { cache: "no-store" })
-      .then((res) => res.json())
-      .then(setCafes);
+  // 1. [수정] 좌표(bounds) 없이 검색어만으로 데이터 로드
+  const loadCafes = useCallback(async (searchQuery: string) => {
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery,
+      });
+
+      const res = await fetch(`/api/cafes?${params.toString()}`);
+      if (!res.ok) throw new Error("네트워크 응답 에러");
+      const data = await res.json();
+      setCafes(data);
+    } catch (err) {
+      console.error("데이터 로드 실패:", err);
+    }
   }, []);
 
-  return (
-    <div className="flex flex-col h-dvh w-full">
-      {/* ✅ 헤더 */}
-      <Header />
+  // 2. [수정] q가 바뀔 때만 API 호출 (무한 루프 방지)
+  useEffect(() => {
+    loadCafes(q);
+  }, [q, loadCafes]);
 
-      {/* ✅ 헤더 제외한 나머지 영역 */}
+  // 3. 즐겨찾기 토글 함수
+  const toggleFavorite = async (cafeId: number) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return alert("로그인이 필요합니다!");
+
+    const { data: existing } = await supabase
+      .from("user_favorites")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("cafe_id", cafeId)
+      .single();
+
+    if (existing) {
+      await supabase.from("user_favorites").delete().eq("id", existing.id);
+      alert("즐겨찾기 삭제 완료");
+    } else {
+      await supabase.from("user_favorites").insert({ 
+        user_id: session.user.id, 
+        cafe_id: cafeId 
+      });
+      alert("즐겨찾기 추가 완료");
+    }
+    // 데이터 즉시 갱신
+    loadCafes(q);
+  };
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden">
+      <Header 
+        q={q} 
+        onChangeQ={setQ} 
+        selected={selectedFilters}
+        onToggle={(key) => setSelectedFilters(prev => 
+          prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+        )}
+        onClear={() => setSelectedFilters([])}
+      /> 
       <div className="flex-1 relative">
-        <Map cafes={cafes} />
+        <Map 
+          cafes={cafes} 
+          onToggleFavorite={toggleFavorite} 
+        />
       </div>
     </div>
   );
