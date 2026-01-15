@@ -47,12 +47,16 @@ export default function Header({ q, onChangeQ, selected, onToggle, onClear }: Pr
   }, []);
 
   // --- [2] 로그인/로그아웃 핸들러 ---
-  const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "kakao",
-      options: { redirectTo: window.location.origin },
-    });
-  };
+const handleLogin = async () => {
+  await supabase.auth.signInWithOAuth({
+    provider: "kakao",
+    options: {
+      // 오직 닉네임만! 이메일의 'ㅇ'자도 꺼내지 않습니다.
+      scopes: 'profile_nickname',
+      redirectTo: window.location.origin,
+    },
+  });
+};
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
