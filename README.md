@@ -1,47 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☕ SCM (StudyCafeMap): 카공족을 위한 맞춤형 지도 서비스
 
-## Getting Started
+> **"오늘 공부하기 딱 좋은 카페, 어디일까?"** > SCM은 조용한 작업 공간이 필요한 카공족과 프리랜서들을 위해 주변 카페의 위치와 상세 정보를 제공하는 지도 기반 웹 서비스입니다.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Service Link
+* **Live Demo**: [데모링크](https://scm-cafemap.vercel.app/)
+* **Environment**: Next.js, Supabase, Kakao Maps API
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠 Tech Stack
+- **Framework**: `Next.js (App Router)`
+- **Language**: `TypeScript`
+- **Database/Auth**: `Supabase`
+- **Styling**: `Tailwind CSS`
+- **Map API**: `Kakao Maps API`
+- **Deployment**: `Vercel`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 👨‍💻 Key Features & Contributions
 
-To learn more about Next.js, take a look at the following resources:
+### 1. 지도 기반 실시간 카페 탐색
+- 카카오 맵 API를 커스텀하여 주변 카페 위치를 마커로 시각화했습니다.
+- 사용자의 현재 위치를 기반으로 지도를 초기화하고 이동시키는 기능을 구현했습니다.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 2. 상세 정보 사이드바 시스템
+- 마커 클릭 시 해당 카페의 상세 정보(이름, 주소, 이미지, 카공 편의성 등)를 사이드바를 통해 즉각적으로 노출합니다.
+- `SelectedCafe` 상태 관리를 통해 지도와 사이드바 간의 끊김 없는 데이터 동기화를 달성했습니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Supabase 데이터 연동 및 관리
+- Supabase를 백엔드로 활용하여 카페 리스트, 사용자 리뷰 데이터를 실시간으로 페칭하고 렌더링합니다.
+- 비동기 데이터 로딩 시 사용자 경험을 위해 스켈레톤 UI 및 로딩 상태 처리를 적용했습니다.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔍 핵심 트러블슈팅 (Troubleshooting)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 1. 외부 API 로드 시점과 Next.js 생명주기 제어
+- **문제**: 페이지 로드 시 카카오 맵 객체를 참조하지 못해 `kakao is not defined` 에러 빈번히 발생.
+- **해결**: `next/script`의 `strategy="afterInteractive"`와 `onLoad` 핸들러를 사용하여 스크립트 로드 완료 후에만 지도 초기화 함수가 실행되도록 보장했습니다.
 
-## SCM(study cafe map)
-- 만든이유
-    - 요즘 카페를 가면 항상 **카공족**이라고 불리는 노트북으로 자신의 업무를 본다던가 혹은 공부하는 사람들이 늘어났다 그러한 사람들을 위한 웹앱
+### 2. 지도 마커 렌더링 최적화 및 메모리 누수 방지
+- **문제**: 데이터 업데이트 시 기존 마커가 삭제되지 않고 겹쳐 찍히는 현상으로 인해 브라우저 성능 저하.
+- **해결**: `useRef`로 마커 객체 배열을 관리하고, 새로운 데이터를 그리기 전 반드시 기존 마커의 `setMap(null)`을 호출하는 클린업 로직을 구현했습니다.
 
-----
+### 3. 마커 클릭 인터랙션 및 시각적 동기화
+- **문제**: 지도의 마커 클릭 이벤트와 리액트의 상태 관리가 분리되어 UI 반영이 늦어짐.
+- **해결**: 마커 이벤트 리스너 내부에서 리액트 상태 업데이트 함수를 직접 호출하도록 연결하고, 클릭된 좌표로 지도를 부드럽게 이동시키는 `panTo` 기능을 추가하여 UX를 개선했습니다.
 
-## 기술 스택
-- TS
-- Node.js
-- 
+---
+
+## 📂 Project Structure
+```text
+src/
+├── app/
+│   ├── api/        # 데이터 요청을 위한 API Route
+│   ├── layout.tsx  # 전역 레이아웃 및 폰트 설정
+│   └── page.tsx    # 메인 지도 페이지
+├── components/
+│   ├── Map.tsx     # 카카오 맵 핵심 로직 및 마커 제어
+│   ├── Sidebar.tsx # 카페 상세 정보 노출 UI
+│   └── Header.tsx  # 네비게이션 및 로고
+└── lib/
+    └── supabase.ts # Supabase 클라이언트 설정
