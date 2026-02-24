@@ -4,13 +4,13 @@
 
 ---
 
-## 🚀 Service Link
+## 🚀 서비스링크
 * **Live Demo**: [데모링크](https://scm-cafemap.vercel.app/)
 * **Environment**: Next.js, Supabase, Kakao Maps API
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 기술 스택
 - **Framework**: `Next.js (App Router)`
 - **Language**: `TypeScript`
 - **Database/Auth**: `Supabase`
@@ -20,7 +20,7 @@
 
 ---
 
-## 👨‍💻 Key Features & Contributions
+## 👨‍💻 주요 특징
 
 ### 1. 지도 기반 실시간 카페 탐색
 - 카카오 맵 API를 커스텀하여 주변 카페 위치를 마커로 시각화했습니다.
@@ -36,7 +36,7 @@
 
 ---
 
-## 🔍 핵심 트러블슈팅 (Troubleshooting)
+## 🔍 핵심 트러블슈팅
 
 ### 1. 외부 API 로드 시점과 Next.js 생명주기 제어
 - **문제**: 페이지 로드 시 카카오 맵 객체를 참조하지 못해 `kakao is not defined` 에러 빈번히 발생.
@@ -52,7 +52,7 @@
 
 ---
 
-## 📂 Project Structure
+## 📂 폴더 구조
 ```text
 src/
 ├── app/
