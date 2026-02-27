@@ -11,9 +11,9 @@ export type FilterKey =
   | "parking"
   | "singleSeat"
   | "onlyFavorites"
-  | "starbucks"
-  | "hollys"
-  | "twosome";
+  | "STARBUCKS"
+  | "HOLLYS"
+  | "TWOSOME";
 
 type FilterChip = {
   key: FilterKey;
@@ -27,9 +27,9 @@ export const FILTER_CHIPS: readonly FilterChip[] = [
   { key: "parking", label: "주차" },
   { key: "singleSeat", label: "1인석" },
   { key: "onlyFavorites", label: "저장한 카페" },
-  { key: "starbucks", label: "스타벅스" },
-  { key: "hollys", label: "할리스" },
-  { key: "twosome", label: "투썸플레이스" },
+  { key: "STARBUCKS", label: "스타벅스" },
+  { key: "HOLLYS", label: "할리스" },
+  { key: "TWOSOME", label: "투썸플레이스" },
 ];
 
 type Props = {
@@ -73,7 +73,6 @@ export default function Header({
     await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        // 오직 닉네임만! 이메일의 'ㅇ'자도 꺼내지 않습니다.
         scopes: "profile_nickname",
         redirectTo: window.location.origin,
       },
@@ -92,13 +91,10 @@ export default function Header({
   return (
     <header className="w-full border-b bg-white sticky top-0 z-1000">
       <div className="max-w-[1024px] mx-auto px-4 py-3 flex items-center gap-3">
-        {/* 로고 */}
         <div className="flex items-center gap-2 shrink-0">
           <Image src="/logo.svg" alt="SCM 로고" width={32} height={32} />
           <div className="font-extrabold text-base tracking-tight">SCM</div>
         </div>
-
-        {/* 검색창 */}
         <div className="flex-1 relative">
           <input
             value={q}
@@ -115,8 +111,6 @@ export default function Header({
             </button>
           )}
         </div>
-
-        {/* --- [3] 로그인 세션 영역 --- */}
         <div className="shrink-0">
           {user ? (
             <div className="flex items-center gap-3">
@@ -145,8 +139,6 @@ export default function Header({
           )}
         </div>
       </div>
-
-      {/* 필터 칩 영역 */}
       <div className="max-w-[1024px] mx-auto px-4 pb-3 flex items-center gap-2">
         <div
           ref={scrollRef}
@@ -155,10 +147,7 @@ export default function Header({
         >
           {FILTER_CHIPS.map((chip) => {
             const active = selected.includes(chip.key);
-
-            // 로그인 안 했을 때 '저장한 카페' 필터는 숨기거나 비활성화 가능
             if (chip.key === "onlyFavorites" && !user) return null;
-
             return (
               <button
                 key={chip.key}
@@ -174,7 +163,6 @@ export default function Header({
             );
           })}
         </div>
-        {/* 전체 해제 버튼 (필터 왼쪽에 배치하여 접근성 향상) */}
         <button
           onClick={onClear}
           disabled={!hasSelected}
