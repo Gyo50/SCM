@@ -170,7 +170,7 @@ export default function Map({ cafes, onToggleFavorite }: Props) {
     const initMap = () => {
       kakao.maps.load(() => {
         const map = new kakao.maps.Map(mapDivRef.current, {
-          center: new kakao.maps.LatLng(37.5665, 126.978),
+          center: new kakao.maps.LatLng(37.5135, 126.941),
           level: 3,
         });
         mapRef.current = map;
