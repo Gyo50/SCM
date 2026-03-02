@@ -93,7 +93,7 @@ export async function GET(req: Request) {
       .lte("longitude", parseFloat(neLng));
   }
 
-  const brandList: CafeBrand[] = ["STARBUCKS", "HOLLYS", "TWOSOME", "TOMNTOMS", "COMPOSE"];
+  const brandList: CafeBrand[] = ["STARBUCKS", "HOLLYS", "TWOSOME", "TOMNTOMS", "COMPOSE", "ETC"];
   const selectedBrands = filters.filter((f) => brandList.includes(f as CafeBrand));
 
   if (selectedBrands.length > 0) {
