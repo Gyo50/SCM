@@ -11,59 +11,87 @@ export default function Page() {
   const [q, setQ] = useState("");
   const [selectedFilters, setSelectedFilters] = useState<FilterKey[]>([]);
 
-  const loadCafes = useCallback(async (searchQuery: string) => {
+  // ✅ 즐겨찾기 ID 목록을 상태로 관리
+  const [favorites, setFavorites] = useState<number[]>([]);
+
+  // 1. 초기 로드: 카페 데이터 및 즐겨찾기 목록
+  const loadInitialData = useCallback(async () => {
+    // 즐겨찾기 로드
+    const stored = JSON.parse(localStorage.getItem("favorites") || "[]").map(
+      Number,
+    );
+    setFavorites(stored);
+
+    // 카페 데이터 로드
     try {
-      const params = new URLSearchParams({ q: searchQuery });
-      const res = await fetch(`/api/cafes?${params.toString()}`);
-      if (!res.ok) throw new Error("네트워크 응답 에러");
-      const data = await res.json();
-      setCafes(data);
+      const res = await fetch("/api/cafes");
+      if (res.ok) {
+        const data = await res.json();
+        setCafes(data);
+      }
     } catch (err) {
       console.error("데이터 로드 실패:", err);
     }
   }, []);
 
   useEffect(() => {
-    loadCafes(q);
-  }, [q, loadCafes]);
+    loadInitialData();
+  }, [loadInitialData]);
 
+  // 2. 검색 및 필터링 로직 (핵심)
   useEffect(() => {
-    let filtered = [...cafes];
-    const brandKeys = ["STARBUCKS", "HOLLYS", "TWOSOME"];
+    let result = [...cafes];
 
+    // ✅ 필터 적용
     selectedFilters.forEach((key) => {
-      if (key === "openNow") filtered = filtered.filter((c) => c.isOpenNow);
-      else if (key === "open24h") filtered = filtered.filter((c) => c.open24h);
-      else if (key === "outlets")
-        filtered = filtered.filter((c) => c.hasOutlet);
-      else if (key === "parking") filtered = filtered.filter((c) => c.parking);
+      if (key === "onlyFavorites") {
+        // favorites 상태에 포함된 ID만 남김
+        result = result.filter((c) => favorites.includes(Number(c.id)));
+      } else if (key === "openNow") result = result.filter((c) => c.isOpenNow);
+      else if (key === "open24h") result = result.filter((c) => c.open24h);
+      else if (key === "outlets") result = result.filter((c) => c.hasOutlet);
+      else if (key === "parking") result = result.filter((c) => c.parking);
       else if (key === "singleSeat")
-        filtered = filtered.filter((c) => c.singleSeat);
-      else if (brandKeys.includes(key)) {
-        filtered = filtered.filter((c) => c.brand === key);
-      } else if (key === "onlyFavorites") {
-        const favorites = JSON.parse(localStorage.getItem("favorites") || "[]");
-        filtered = filtered.filter((c) => favorites.includes(c.id));
+        result = result.filter((c) => c.singleSeat);
+      else if (["STARBUCKS", "HOLLYS", "TWOSOME"].includes(key)) {
+        result = result.filter((c) => c.brand === key);
       }
     });
+
+    // ✅ 검색어 적용
     if (q) {
-      filtered = filtered.filter(
+      result = result.filter(
         (c) => c.name.includes(q) || c.roadAddress?.includes(q),
       );
     }
 
-    setFilteredCafes(filtered);
-  }, [selectedFilters, cafes, q]);
+    setFilteredCafes(result);
+  }, [cafes, q, selectedFilters, favorites]); // favorites가 바뀔 때마다 실행됨!
 
+  // 3. 즐겨찾기 토글 함수
   const handleToggleFavorite = async (cafeId: number) => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) {
-      alert("로그인이 필요합니다. 상단 카카오 로그인을 이용해 주세요!");
+      alert("로그인이 필요합니다!");
       return;
     }
-    console.log("로그인 확인: ", cafeId, "번 카페 즐겨찾기 처리 중...");
+
+    const currentFavs = JSON.parse(
+      localStorage.getItem("favorites") || "[]",
+    ).map(Number);
+    let newFavs;
+
+    if (currentFavs.includes(cafeId)) {
+      newFavs = currentFavs.filter((id: number) => id !== cafeId);
+    } else {
+      newFavs = [...currentFavs, cafeId];
+    }
+
+    // 로컬스토리지 저장 및 **상태 업데이트**
+    localStorage.setItem("favorites", JSON.stringify(newFavs));
+    setFavorites(newFavs); // ✅ 이 업데이트가 위 useEffect를 트리거하여 지도를 다시 그림
   };
 
   return (
@@ -72,7 +100,7 @@ export default function Page() {
         q={q}
         onChangeQ={setQ}
         selected={selectedFilters}
-        onToggle={(key) =>
+        onToggle={(key: FilterKey) =>
           setSelectedFilters((prev) =>
             prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
           )

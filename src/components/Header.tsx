@@ -1,44 +1,34 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
 export type FilterKey =
+  | "onlyFavorites"
   | "openNow"
   | "open24h"
   | "outlets"
   | "parking"
   | "singleSeat"
-  | "onlyFavorites"
   | "STARBUCKS"
   | "HOLLYS"
   | "TWOSOME";
 
-type FilterChip = {
-  key: FilterKey;
-  label: string;
-};
+type FilterChip = { key: FilterKey; label: string };
 
 export const FILTER_CHIPS: readonly FilterChip[] = [
+  { key: "onlyFavorites", label: "⭐️ 즐겨찾기" },
   { key: "openNow", label: "지금 영업중" },
   { key: "open24h", label: "24시간" },
   { key: "outlets", label: "콘센트" },
   { key: "parking", label: "주차" },
   { key: "singleSeat", label: "1인석" },
-  { key: "onlyFavorites", label: "저장한 카페" },
   { key: "STARBUCKS", label: "스타벅스" },
   { key: "HOLLYS", label: "할리스" },
   { key: "TWOSOME", label: "투썸플레이스" },
 ];
-
-type Props = {
-  q: string;
-  onChangeQ: (v: string) => void;
-  selected: FilterKey[];
-  onToggle: (k: FilterKey) => void;
-  onClear: () => void;
-};
 
 export default function Header({
   q,
@@ -46,149 +36,135 @@ export default function Header({
   selected,
   onToggle,
   onClear,
-}: Props) {
-  const hasSelected = useMemo(() => selected.length > 0, [selected]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+}: any) {
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // --- [1] 로그인 상태 감지 ---
   useEffect(() => {
-    // 초기 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
-    });
+      setLoading(false);
+    };
+    checkUser();
 
-    // 상태 변화 구독
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- [2] 로그인/로그아웃 핸들러 ---
   const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
-      provider: "kakao",
+      provider: "google",
       options: {
-        scopes: "profile_nickname",
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const onWheel = (e: React.WheelEvent) => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollLeft += e.deltaY;
-  };
+  const userAvatar = useMemo(
+    () => user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+    [user],
+  );
 
   return (
-    <header className="w-full border-b bg-white sticky top-0 z-1000">
+    <header className="w-full border-b bg-white sticky top-0 z-[1000] shadow-sm">
       <div className="max-w-[1024px] mx-auto px-4 py-3 flex items-center gap-3">
-        <div className="flex items-center gap-2 shrink-0">
-          <Image src="/logo.svg" alt="SCM 로고" width={32} height={32} />
-          <div className="font-extrabold text-base tracking-tight">SCM</div>
-        </div>
+        {/* 로고: 호버 시 약간 투명해지는 효과 */}
+        <Link
+          href="/"
+          className="flex items-center gap-2 shrink-0 hover:opacity-70 transition-opacity cursor-pointer"
+        >
+          <Image src="/logo.svg" alt="로고" width={32} height={32} />
+          <div className="font-extrabold text-base text-gray-900 tracking-tight">
+            SCM
+          </div>
+        </Link>
+
+        {/* 검색창: 포커스 시 테두리 강조 및 그림자 효과 */}
         <div className="flex-1 relative">
           <input
             value={q}
             onChange={(e) => onChangeQ(e.target.value)}
             placeholder="카페 검색"
-            className="w-full rounded-xl border bg-gray-50 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-black outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-gray-400"
           />
-          {q && (
-            <button
-              onClick={() => onChangeQ("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-          )}
         </div>
-        <div className="shrink-0">
-          {user ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden md:block text-right">
-                <p className="text-[10px] text-gray-400 leading-none">
-                  반가워요!
-                </p>
-                <p className="text-xs font-bold">
-                  {user.user_metadata.full_name || "사용자"}
-                </p>
+
+        <div className="shrink-0 min-w-[40px] flex justify-end items-center">
+          {!loading &&
+            (user ? (
+              <div className="flex items-center gap-3">
+                {/* 프로필 이미지 호버 시 테두리 강조 */}
+                <div className="relative w-9 h-9 overflow-hidden rounded-full border border-gray-200 hover:border-blue-300 transition-colors cursor-help shadow-sm">
+                  {userAvatar ? (
+                    <Image
+                      src={userAvatar}
+                      alt="프로필"
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs">
+                      User
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() =>
+                    supabase.auth.signOut().then(() => window.location.reload())
+                  }
+                  className="text-xs font-semibold text-gray-500 hover:text-red-500 active:scale-95 transition-all cursor-pointer px-2 py-1 rounded-md hover:bg-red-50"
+                >
+                  로그아웃
+                </button>
               </div>
+            ) : (
               <button
-                onClick={handleLogout}
-                className="text-xs font-medium text-gray-500 hover:text-red-500 border rounded-lg px-2 py-2"
+                onClick={handleLogin}
+                className="flex items-center gap-2 bg-white border border-gray-300 px-4 py-2 rounded-xl font-bold text-xs shadow-sm hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 active:scale-95 transition-all cursor-pointer"
               >
-                로그아웃
+                <Image
+                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                  alt="G"
+                  width={14}
+                  height={14}
+                />
+                <span className="text-gray-700">로그인</span>
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleLogin}
-              className="bg-[#FEE500] text-[#191919] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-[#FADA0A] transition-colors"
-            >
-              <span>로그인</span>
-            </button>
-          )}
+            ))}
         </div>
       </div>
-      <div className="max-w-[1024px] mx-auto px-4 pb-3 flex items-center gap-2">
-        <div
-          ref={scrollRef}
-          onWheel={onWheel}
-          className="flex-1 flex gap-2 overflow-x-auto scroll-hide whitespace-nowrap active:cursor-grabbing"
-        >
-          {FILTER_CHIPS.map((chip) => {
-            const active = selected.includes(chip.key);
-            if (chip.key === "onlyFavorites" && !user) return null;
-            return (
-              <button
-                key={chip.key}
-                onClick={() => onToggle(chip.key)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-sm border transition-all cursor-pointer ${
-                  active
-                    ? "bg-blue-600 text-white border-blue-600 font-bold shadow-sm"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"
-                }`}
-              >
-                {chip.label}
-              </button>
-            );
-          })}
-        </div>
-        <button
-          onClick={onClear}
-          disabled={!hasSelected}
-          className={`shrink-0 rounded-lg p-2 border transition cursor-pointer ${
-            hasSelected
-              ? "bg-white text-blue-600 border-blue-100"
-              : "bg-gray-50 text-gray-300 border-gray-100"
-          }`}
-          title="필터 초기화"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-        </button>
+
+      {/* 필터 칩: 가로 스크롤 가독성 및 클릭 피드백 강화 */}
+      <div className="max-w-[1024px] mx-auto px-4 pb-3 flex items-center gap-2 overflow-x-auto scroll-hide whitespace-nowrap scroll-smooth">
+        {FILTER_CHIPS.map((chip) => {
+          if (chip.key === "onlyFavorites" && !user) return null;
+          const isActive = selected.includes(chip.key);
+
+          return (
+            <button
+              key={chip.key}
+              onClick={() => onToggle(chip.key)}
+              className={`
+                shrink-0 rounded-full px-4 py-1.5 text-sm font-medium border transition-all cursor-pointer active:scale-90
+                ${
+                  isActive
+                    ? "bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-100 hover:bg-blue-700"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-50 hover:text-gray-900"
+                }
+              `}
+            >
+              {chip.label}
+            </button>
+          );
+        })}
       </div>
     </header>
   );
